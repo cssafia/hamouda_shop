@@ -1,0 +1,16 @@
+{
+  "wilayas": [
+    { "code": "16", "name": "Alger",       "home_rate": 500, "stop_desk_rate": 300 },
+    { "code": "31", "name": "Oran",        "home_rate": 700, "stop_desk_rate": 400 },
+    { "code": "25", "name": "Constantine", "home_rate": 700, "stop_desk_rate": 400 },
+    { "code": "09", "name": "Blida",       "home_rate": 600, "stop_desk_rate": 350 },
+    { "code": "06", "name": "Béjaïa",      "home_rate": 700, "stop_desk_rate": 400 }
+  ],
+  "communes": {
+    "16": ["Alger Centre", "Bab El Oued", "Bir Mourad Rais", "Hydra", "Kouba"],
+    "31": ["Oran", "Bir El Djir", "Es Sénia"],
+    "25": ["Constantine", "El Khroub", "Hamma Bouziane"],
+    "09": ["Blida", "Boufarik", "Larbaâ"],
+    "06": ["Béjaïa", "Akbou", "Amizour"]
+  }
+}

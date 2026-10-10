@@ -1,0 +1,31 @@
+# Env files (all variations)
+.env
+.env.*
+*.env
+frontend/env
+frontend/.env
+frontend/.env.*
+backend/.env
+backend/.env.*
+backend/ca.pem
+
+# Certs & keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Node
+node_modules/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
