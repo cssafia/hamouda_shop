@@ -28,6 +28,7 @@ import EmptyState from '../../../components/ui/EmptyState'
 import StatusPill from '../../../components/ui/StatusPill'
 import Skeleton from '../../../components/ui/Skeleton'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
+import SectionCard from '../../../components/ui/SectionCard'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -194,19 +195,6 @@ function ProductThumb({ product }) {
    Cards
    ================================================================ */
 
-function Card({ icon: Icon, title, action, children }) {
-  return (
-    <section className="card overflow-hidden">
-      <header className="flex items-center gap-2 px-4 sm:px-5 py-3.5 border-b border-surface-border">
-        {Icon && <Icon size={16} className="text-ink-400" />}
-        <h2 className="font-medium text-ink-900">{title}</h2>
-        {action && <div className="ml-auto">{action}</div>}
-      </header>
-      <div className="p-4 sm:p-5">{children}</div>
-    </section>
-  )
-}
-
 function OverviewCard({ product }) {
   const rows = [
     ['Condition', product.condition],
@@ -217,7 +205,7 @@ function OverviewCard({ product }) {
   const usages = product.usages ?? []
 
   return (
-    <Card icon={Sparkles} title="Overview">
+    <SectionCard icon={Sparkles} title="Overview">
       {product.description ? (
         <p className="text-sm text-ink-700 whitespace-pre-line">{product.description}</p>
       ) : (
@@ -250,7 +238,7 @@ function OverviewCard({ product }) {
           </div>
         </div>
       )}
-    </Card>
+    </SectionCard>
   )
 }
 
@@ -261,7 +249,7 @@ function PricingCard({ product }) {
   const off = discountPercent(product.price, product.promotional_price)
 
   return (
-    <Card icon={Tag} title="Pricing">
+    <SectionCard icon={Tag} title="Pricing">
       <div className="space-y-3">
         <div>
           <p className="text-xs text-ink-600 mb-1">Price</p>
@@ -293,7 +281,7 @@ function PricingCard({ product }) {
           </div>
         )}
       </div>
-    </Card>
+    </SectionCard>
   )
 }
 
@@ -301,7 +289,7 @@ function ImagesCard({ product }) {
   const images = product.images ?? []
 
   return (
-    <Card icon={ImageIcon} title={`Images (${images.length})`}>
+    <SectionCard icon={ImageIcon} title={`Images (${images.length})`}>
       {images.length === 0 ? (
         <p className="text-sm text-ink-400 italic">No images.</p>
       ) : (
@@ -326,7 +314,7 @@ function ImagesCard({ product }) {
           ))}
         </div>
       )}
-    </Card>
+    </SectionCard>
   )
 }
 
@@ -334,7 +322,7 @@ function SpecsCard({ product }) {
   const specs = product.specifications ?? []
 
   return (
-    <Card icon={Layers} title="Specifications">
+    <SectionCard icon={Layers} title="Specifications">
       {specs.length === 0 ? (
         <p className="text-sm text-ink-400 italic">No specifications.</p>
       ) : (
@@ -347,7 +335,7 @@ function SpecsCard({ product }) {
           ))}
         </dl>
       )}
-    </Card>
+    </SectionCard>
   )
 }
 
@@ -363,17 +351,16 @@ function StockCard({ product }) {
   // ── Single mode: one stock number, no variants
   if (!hasVariants) {
     return (
-      <Card icon={Boxes} title="Stock">
+      <SectionCard icon={Boxes} title="Stock">
         <StockStat value={baseStock} label="Quantity in stock" />
-      </Card>
+      </SectionCard>
     )
   }
 
   // ── Shared mode: show pool + variants (no per-variant stock column)
   if (mode === 'shared') {
-    const totalVariantStock = 0 // not applicable in shared mode
     return (
-      <Card
+      <SectionCard
         icon={Boxes}
         title="Stock · shared pool"
         action={
@@ -395,7 +382,7 @@ function StockCard({ product }) {
         </div>
 
         <VariantList variants={variants} showStock={false} />
-      </Card>
+      </SectionCard>
     )
   }
 
@@ -404,7 +391,7 @@ function StockCard({ product }) {
   const grandTotal = baseStock + variantTotal
 
   return (
-    <Card
+    <SectionCard
       icon={Boxes}
       title={`Variants (${variants.length})`}
       action={
@@ -422,16 +409,18 @@ function StockCard({ product }) {
       </div>
 
       <VariantList variants={variants} showStock />
-    </Card>
+    </SectionCard>
   )
 }
 
 function StockStat({ value, label, compact = false }) {
   return (
     <div>
-      <p className={`font-semibold ${compact ? 'text-xl' : 'text-3xl'} ${
-        value === 0 ? 'text-danger' : 'text-ink-900'
-      }`}>
+      <p
+        className={`font-semibold ${compact ? 'text-xl' : 'text-3xl'} ${
+          value === 0 ? 'text-danger' : 'text-ink-900'
+        }`}
+      >
         {value}
       </p>
       <p className="text-xs text-ink-600 mt-0.5">{label}</p>
@@ -461,9 +450,11 @@ function VariantList({ variants, showStock }) {
                   <VariantPrice variant={v} />
                 </td>
                 {showStock && (
-                  <td className={`px-3 py-3 text-right font-medium ${
-                    (v.stock_quantity ?? 0) === 0 ? 'text-danger' : 'text-ink-900'
-                  }`}>
+                  <td
+                    className={`px-3 py-3 text-right font-medium ${
+                      (v.stock_quantity ?? 0) === 0 ? 'text-danger' : 'text-ink-900'
+                    }`}
+                  >
                     {v.stock_quantity ?? 0}
                   </td>
                 )}
@@ -494,9 +485,11 @@ function VariantList({ variants, showStock }) {
             <div className="flex items-center justify-between mt-2 text-sm">
               <VariantPrice variant={v} />
               {showStock && (
-                <span className={`text-xs font-medium ${
-                  (v.stock_quantity ?? 0) === 0 ? 'text-danger' : 'text-ink-600'
-                }`}>
+                <span
+                  className={`text-xs font-medium ${
+                    (v.stock_quantity ?? 0) === 0 ? 'text-danger' : 'text-ink-600'
+                  }`}
+                >
                   Stock: {v.stock_quantity ?? 0}
                 </span>
               )}

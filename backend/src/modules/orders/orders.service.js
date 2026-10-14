@@ -1,3 +1,4 @@
+'use strict';
 
 const ApiError = require('../../utils/apiError');
 const db = require('../../config/database');
@@ -53,7 +54,7 @@ async function createOrder(sessionId, input) {
   const productPh = productIds.map(() => '?').join(',');
   const [productRows] = await pool.execute(
     `SELECT id, name, product_type, price, promotional_price,
-            stock_quantity, stock_mode, is_active
+            profit, stock_quantity, stock_mode, is_active
        FROM products WHERE id IN (${productPh})`,
     productIds
   );
@@ -62,7 +63,7 @@ async function createOrder(sessionId, input) {
   let variants = {};
   if (variantIds.length) {
     const [variantRows] = await pool.execute(
-      `SELECT id, product_id, name, price, promotional_price,
+      `SELECT id, product_id, name, price, promotional_price, profit,
               stock_quantity, is_active, duration
          FROM product_variants WHERE id IN (${variantIds.map(() => '?').join(',')})`,
       variantIds
@@ -90,7 +91,7 @@ async function createOrder(sessionId, input) {
       }
     }
 
-    // Availability + stock check
+    // Availability + stock check (mode-aware)
     if (product.product_type === 'physical') {
       hasPhysical = true;
 
@@ -101,6 +102,7 @@ async function createOrder(sessionId, input) {
           throw ApiError.badRequest(`Not enough stock for "${product.name} - ${variant.name}"`);
         }
       } else {
+        // per_variant base config OR product with no variants
         if ((product.stock_quantity ?? 0) < item.quantity) {
           throw ApiError.badRequest(`Not enough stock for "${product.name}"`);
         }
@@ -111,7 +113,9 @@ async function createOrder(sessionId, input) {
       ? effectivePrice(variant.price, variant.promotional_price)
       : effectivePrice(product.price, product.promotional_price);
 
-    const unitProfit = variant?.profit != null ? Number(variant.profit) : 0;
+    const unitProfit = variant
+      ? Number(variant.profit ?? 0)
+      : Number(product.profit ?? 0);
 
     const lineTotal = unitPrice * item.quantity;
     subtotal += lineTotal;
@@ -262,8 +266,8 @@ async function getAdminOrderDetail(id) {
     order_type: order.order_type,
     status: order.status,
     note: order.note,
-    cancellation: order.cancellation_reason
-      ? { reason: order.cancellation_reason, note: order.cancellation_note }
+    cancellation: order.rejection_reason
+      ? { reason: order.rejection_reason, note: order.rejection_note }
       : null,
     shipping,
     items: items.map((it) => ({
@@ -293,25 +297,41 @@ async function listAdmin(query) {
   const page = query.page || 1;
   const limit = query.limit || 20;
   const { rows, total } = await repo.list({ page, limit, ...query });
+
+  const orderIds = rows.map((r) => r.id);
+  const itemsByOrder = await repo.listFirstItemsByOrderIds(orderIds, 2);
+
   return {
-    items: rows.map((r) => ({
-      id: r.id,
-      customer_name: r.customer_name,
-      customer_phone: r.customer_phone,
-      order_type: r.order_type,
-      items_count: Number(r.items_count),
-      total_amount: Number(r.total_amount),
-      status: r.status,
-      created_at: r.created_at,
-    })),
+    items: rows.map((r) => {
+      const items = itemsByOrder[r.id] || [];
+      const first = items[0];
+      const extra = Math.max(0, Number(r.items_count) - 1);
+
+      let preview = null;
+      if (first) {
+        preview = extra > 0
+          ? `${first.product_name} +${extra} autre${extra > 1 ? 's' : ''}`
+          : first.product_name;
+      }
+
+      return {
+        id: r.id,
+        customer_name: r.customer_name,
+        customer_phone: r.customer_phone,
+        items_count: Number(r.items_count),
+        items_preview: preview,
+        total_amount: Number(r.total_amount),
+        status: r.status,
+        created_at: r.created_at,
+      };
+    }),
     meta: { page, limit, total, pages: Math.ceil(total / limit) },
   };
 }
 
 // ─── Status change ────────────────────────────────────
 
-async function changeStatus(id, { status, cancellation_reason, cancellation_note }) {
-  const order = await repo.findById(id);
+async function changeStatus(id, { status, rejection_reason, rejection_note }) {  const order = await repo.findById(id);
   if (!order) throw ApiError.notFound('Order not found');
 
   assertTransition(order.order_type, order.status, status);
@@ -319,8 +339,9 @@ async function changeStatus(id, { status, cancellation_reason, cancellation_note
   const isCancelling = status === 'cancelled';
   const isReturning = status === 'returned';
   const needsRestore = isCancelling || isReturning;
-
   const isConfirming = status === 'confirmed';
+
+  const lowStockNotifications = [];
 
   await db.transaction(async (conn) => {
     // Lock the order
@@ -332,11 +353,12 @@ async function changeStatus(id, { status, cancellation_reason, cancellation_note
     const items = await repo.listItemsByOrder(id);
 
     if (isConfirming) {
-      // Decrement stock
+      // ─── Lock products ─────────────────────────────
       const productIds = [...new Set(items.map((i) => i.product_id))];
       const productPh = productIds.map(() => '?').join(',');
       const [productRows] = await conn.execute(
-        `SELECT id, name, product_type, stock_quantity, stock_mode, is_active
+        `SELECT id, name, product_type, stock_quantity, stock_mode,
+                low_stock_threshold, is_active
            FROM products WHERE id IN (${productPh}) FOR UPDATE`,
         productIds
       );
@@ -346,7 +368,8 @@ async function changeStatus(id, { status, cancellation_reason, cancellation_note
       let variants = {};
       if (variantIds.length) {
         const [variantRows] = await conn.execute(
-          `SELECT id, product_id, name, stock_quantity, is_active
+          `SELECT id, product_id, name, stock_quantity,
+                  low_stock_threshold, is_active
              FROM product_variants
             WHERE id IN (${variantIds.map(() => '?').join(',')})
             FOR UPDATE`,
@@ -355,23 +378,35 @@ async function changeStatus(id, { status, cancellation_reason, cancellation_note
         variants = Object.fromEntries(variantRows.map((v) => [v.id, v]));
       }
 
-      // Aggregate shared pool per product
-      const sharedQty = new Map();
+      // ─── Classify decrements by target ─────────────
+      // Three independent targets:
+      //   variantDecrements: per_variant variant rows (own threshold)
+      //   baseDecrements:    per_variant base config + no-variants products (product threshold)
+      //   sharedDecrements:  shared pool (product threshold, aggregated per product)
+      const variantDecrements = new Map();
+      const baseDecrements = new Map();
+      const sharedDecrements = new Map();
+
       for (const it of items) {
         const p = products[it.product_id];
-        if (p.product_type === 'physical' && p.stock_mode === 'shared') {
-          sharedQty.set(p.id, (sharedQty.get(p.id) || 0) + it.quantity);
+        if (!p || p.product_type !== 'physical') continue;
+
+        if (p.stock_mode === 'shared') {
+          sharedDecrements.set(p.id, (sharedDecrements.get(p.id) || 0) + it.quantity);
+        } else if (it.variant_id) {
+          variantDecrements.set(it.variant_id, (variantDecrements.get(it.variant_id) || 0) + it.quantity);
+        } else {
+          baseDecrements.set(p.id, (baseDecrements.get(p.id) || 0) + it.quantity);
         }
       }
 
-      // Validate + decrement per_variant / no_variants
+      // ─── Decrement per_variant / no_variants ───────
       for (const it of items) {
         const p = products[it.product_id];
         if (!p || !p.is_active) {
           throw ApiError.badRequest(`Product "${it.product_name}" is no longer active`);
         }
         if (p.product_type !== 'physical') continue;
-
         if (p.stock_mode === 'shared') continue;
 
         if (it.variant_id) {
@@ -397,8 +432,8 @@ async function changeStatus(id, { status, cancellation_reason, cancellation_note
         }
       }
 
-      // Decrement shared pools
-      for (const [productId, qty] of sharedQty) {
+      // ─── Decrement shared pools ────────────────────
+      for (const [productId, qty] of sharedDecrements) {
         const p = products[productId];
         if ((p.stock_quantity ?? 0) < qty) {
           throw ApiError.badRequest(`Not enough shared stock for "${p.name}"`);
@@ -408,13 +443,54 @@ async function changeStatus(id, { status, cancellation_reason, cancellation_note
           [qty, productId]
         );
       }
+
+      // ─── Low-stock crossing checks (independent per target) ──
+
+      // Variants (per_variant) — each variant uses its own threshold
+      for (const [variantId, qty] of variantDecrements) {
+        const v = variants[variantId];
+        const p = products[v.product_id];
+        const notif = await notificationsService.checkAndNotifyLowStock(conn, {
+          product: p,
+          variant: v,
+          threshold: v.low_stock_threshold,
+          prevQty: (v.stock_quantity ?? 0) + qty,
+          newQty: v.stock_quantity ?? 0,
+        });
+        if (notif) lowStockNotifications.push(notif);
+      }
+
+      // Base config (per_variant) + no-variants — product threshold
+      for (const [productId, qty] of baseDecrements) {
+        const p = products[productId];
+        const notif = await notificationsService.checkAndNotifyLowStock(conn, {
+          product: p,
+          variant: null,
+          threshold: p.low_stock_threshold,
+          prevQty: (p.stock_quantity ?? 0) + qty,
+          newQty: p.stock_quantity ?? 0,
+        });
+        if (notif) lowStockNotifications.push(notif);
+      }
+
+      // Shared pool — product threshold, one check per product
+      for (const [productId, qty] of sharedDecrements) {
+        const p = products[productId];
+        const notif = await notificationsService.checkAndNotifyLowStock(conn, {
+          product: p,
+          variant: null,
+          threshold: p.low_stock_threshold,
+          prevQty: (p.stock_quantity ?? 0) + qty,
+          newQty: p.stock_quantity ?? 0,
+        });
+        if (notif) lowStockNotifications.push(notif);
+      }
     }
 
     if (needsRestore) {
       // Only restore if the order was previously confirmed or shipped
       if (order.status !== 'confirmed' && order.status !== 'shipped') {
         // Nothing to restore — order was never decremented
-        // (pending → cancelled / returned is a no-op for stock)
       } else {
         const productIds = [...new Set(items.map((i) => i.product_id))];
         const productPh = productIds.map(() => '?').join(',');
@@ -462,13 +538,25 @@ async function changeStatus(id, { status, cancellation_reason, cancellation_note
 
     const extra = {};
     if (isCancelling) {
-      extra.cancellation_reason = cancellation_reason ?? null;
-      extra.cancellation_note = cancellation_note ?? null;
-      extra.cancelled_by = 1; // admin id — replace with req.user.id if you pass it
+      extra.rejection_reason = rejection_reason ?? null;
+      extra.rejection_note = rejection_note ?? null;
+      extra.rejected_by = 1;; 
     }
 
     await repo.updateStatus(conn, id, status, extra);
   });
+
+  // Fire low-stock emails after transaction commits
+  for (const n of lowStockNotifications) {
+    const label = n.variantName
+      ? `${n.productName} — ${n.variantName}`
+      : n.productName;
+    sendMail({
+      to: env.mail.superadminEmail,
+      subject: `Low stock: ${label}`,
+      text: `Stock is ${n.newQty} (threshold: ${n.threshold}).`,
+    }).catch((err) => logger.error(`Low-stock email failed: ${err.message}`));
+  }
 
   return getAdminOrderDetail(id);
 }

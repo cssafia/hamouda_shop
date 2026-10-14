@@ -23,23 +23,23 @@ export function useAdminOrder(id) {
 }
 
 /* ---------- Mutations ---------- */
-export function useUpdateOrderStatus(id) {
+export function useUpdateOrderStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload) => api.updateOrderStatus(id, payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: orderKeys.adminDetail(id) })
+    mutationFn: ({ id, payload }) => api.updateOrderStatus(id, payload),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: orderKeys.adminDetail(variables.id) })
       qc.invalidateQueries({ queryKey: ['orders', 'admin', 'list'] })
     },
   })
 }
 
-export function useUpdateOrderShipping(id) {
+export function useUpdateOrderShipping() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload) => api.updateOrderShipping(id, payload),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: orderKeys.adminDetail(id) })
+    mutationFn: ({ id, payload }) => api.updateOrderShipping(id, payload),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: orderKeys.adminDetail(variables.id) })
       qc.invalidateQueries({ queryKey: ['orders', 'admin', 'list'] })
     },
   })

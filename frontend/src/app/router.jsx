@@ -14,13 +14,23 @@ const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword'))
 const ResetPassword  = lazy(() => import('../pages/auth/ResetPassword'))
 
 // Admin
-const Dashboard        = lazy(() => import('../pages/admin/Dashboard/Dashboard'))
-const AdminProductList = lazy(() => import('../pages/admin/Products/ProductList'))
-const ProductDetail    = lazy(() => import('../pages/admin/Products/ProductDetail'))
-const AdminProductForm = lazy(() => import('../pages/admin/Products/ProductForm'))
+const Dashboard          = lazy(() => import('../pages/admin/Dashboard/Dashboard'))
+const AdminProductList   = lazy(() => import('../pages/admin/Products/ProductList'))
+const ProductDetail      = lazy(() => import('../pages/admin/Products/ProductDetail'))
+const AdminProductForm   = lazy(() => import('../pages/admin/Products/ProductForm'))
 const SubscriptionList   = lazy(() => import('../pages/admin/Subscriptions/SubscriptionList'))
 const SubscriptionDetail = lazy(() => import('../pages/admin/Subscriptions/SubscriptionDetail'))
 const SubscriptionForm   = lazy(() => import('../pages/admin/Subscriptions/SubscriptionForm'))
+const OrderDetail        = lazy(() => import('../pages/admin/Orders/OrderDetail.jsx'));
+const OrderList          = lazy(() => import('../pages/admin/Orders/OrderList.jsx'));
+const CouponsList        = lazy(() => import('../pages/admin/Coupons/CouponsList'))
+const CouponForm         = lazy(() => import('../pages/admin/Coupons/CouponForm'))
+const CouponDetail       = lazy(() => import('../pages/admin/Coupons/CouponDetail'))
+const StockList          = lazy(() => import('../pages/admin/Stock/StockList'));
+const Reports            = lazy(() => import('../pages/admin/Reports/Reports'))
+const Notifications      = lazy(() => import('../pages/admin/Notification/Notification'))
+const RequestsList       = lazy(() => import('../pages/admin/Requests/RequestsList'))
+const RequestDetail       = lazy(() => import('../pages/admin/Requests/RequestDetail'))
 
 // Client
 const Home                 = lazy(() => import('../pages/client/Home.jsx'));
@@ -28,6 +38,8 @@ const ClientProductList    = lazy(() => import('../pages/client/Product/ProductL
 const ClientProductDetail  = lazy(() => import('../pages/client/Product/ProductDetail.jsx'));
 const Checkout             = lazy(() => import('../pages/client/Cart/Checkout.jsx'));
 const OrderSuccess         = lazy(() => import('../pages/client/Cart/OrderSuccess.jsx'));
+const CLientSubscriptionDetail   = lazy(() => import('../pages/client/Subscriptions/SubscriptionDetail.jsx'));
+const ServiceRequestPage   = lazy(() => import('../pages/client/Services/ServiceRequestPage'))
 
 /* ---------------- Fallbacks ---------------- */
 function PageLoader() {
@@ -67,6 +79,8 @@ export default function AppRouter() {
           <Route path="/products/:id" element={<ClientProductDetail />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccess />} />
+          <Route path="/subscriptions/:id" element={<CLientSubscriptionDetail />} />
+          <Route path="/services"   element={<ServiceRequestPage />} />
         </Route>
 
         {/* ---------- Admin (protected) ---------- */}
@@ -74,7 +88,6 @@ export default function AppRouter() {
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={<Dashboard />} />
-
             <Route path="/admin/products" element={<AdminProductList />} />
             <Route path="/admin/products/new" element={<AdminProductForm />} />
             <Route path="/admin/products/:id" element={<ProductDetail />} />
@@ -83,9 +96,17 @@ export default function AppRouter() {
             <Route path="/admin/subscriptions/new" element={<SubscriptionForm />} />
             <Route path="/admin/subscriptions/:id" element={<SubscriptionDetail />} />
             <Route path="/admin/subscriptions/:id/edit" element={<SubscriptionForm />} />
-            {/* Coming next: */}
-            {/* <Route path="/admin/orders" element={<OrderList />} /> */}
-            {/* <Route path="/admin/orders/:id" element={<OrderDetail />} /> */}
+            <Route path="/admin/orders" element={<OrderList />} />
+            <Route path="/admin/orders/:id" element={<OrderDetail />} />
+            <Route path="/admin/coupons" element={<CouponsList />} />
+            <Route path="/admin/coupons/new" element={<CouponForm />} />
+            <Route path="/admin/coupons/:id" element={<CouponDetail />} />
+            <Route path="/admin/coupons/:id/edit" element={<CouponForm />} />
+            <Route path="/admin/stock" element={<StockList />} />
+            <Route path="/admin/reports"   element={<Reports />} />
+            <Route path="/admin/notifications" element={<Notifications />} />
+            <Route path="/admin/requests"     element={<RequestsList />} />
+            <Route path="/admin/requests/:id" element={<RequestDetail />} />
           </Route>
         </Route>
 

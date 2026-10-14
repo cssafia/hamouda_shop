@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Children, useCallback, useEffect, useRef, useState } from 'react';
 import { LuChevronLeft, LuChevronRight } from 'react-icons/lu';
-
 
 export default function ScrollableRow({
   children,
@@ -12,6 +11,9 @@ export default function ScrollableRow({
   const scrollRef = useRef(null);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
+
+ 
+  const itemCount = Children.count(children);
 
   const updateArrows = useCallback(() => {
     const el = scrollRef.current;
@@ -41,8 +43,7 @@ export default function ScrollableRow({
       el.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', updateArrows);
     };
-    // re-check when the content itself changes (e.g. data finishes loading)
-  }, [updateArrows, children]);
+  }, [updateArrows, itemCount]);
 
   function scrollByPage(direction) {
     const el = scrollRef.current;
@@ -68,6 +69,7 @@ export default function ScrollableRow({
 
       <div
         ref={scrollRef}
+        dir="ltr"
         className="flex gap-3 lg:gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth
                    -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 scrollbar-hide"
       >

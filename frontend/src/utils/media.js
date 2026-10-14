@@ -1,6 +1,5 @@
 // src/utils/media.js
 
-
 function getServerOrigin() {
   const api = import.meta.env.VITE_API_BASE_URL || '';
   if (!api) return '';
@@ -13,29 +12,13 @@ function getServerOrigin() {
 
 const SERVER_ORIGIN = getServerOrigin();
 
-/**
- * Build a full URL for a media path returned by the API.
- *
- *   imageUrl('/uploads/abc.jpg')           → 'http://localhost:4000/uploads/abc.jpg'
- *   imageUrl('uploads/abc.jpg')            → 'http://localhost:4000/uploads/abc.jpg'
- *   imageUrl('https://cdn.com/x.jpg')      → 'https://cdn.com/x.jpg'  (already absolute)
- *   imageUrl(null)                         → null
- */
 export function imageUrl(path) {
   if (!path) return null;
-
-  // Already absolute (http, https, data:, blob:)
   if (/^(https?:|data:|blob:)/i.test(path)) return path;
-
-  // Ensure exactly one leading slash
   const clean = path.startsWith('/') ? path : `/${path}`;
   return `${SERVER_ORIGIN}${clean}`;
 }
 
-/**
- * Same as imageUrl but for arrays of image objects (e.g. product.images).
- * Adds a `url` field already prefixed.
- */
 export function mapImageUrls(images) {
   if (!Array.isArray(images)) return [];
   return images.map((img) => ({
@@ -44,17 +27,36 @@ export function mapImageUrls(images) {
   }));
 }
 
-/**
- * Map a product-like object: prefixes `primary_image` and any nested `images`.
- * Safe to call on list items or a single product.
- */
 export function mapProductImages(product) {
   if (!product) return product;
-  return {
+
+  const mapped = {
     ...product,
     primary_image: imageUrl(product.primary_image),
     ...(Array.isArray(product.images)
       ? { images: mapImageUrls(product.images) }
       : {}),
+  };
+
+  // Also map any nested variants' images if present
+  if (Array.isArray(product.variants)) {
+    mapped.variants = product.variants.map((v) => ({
+      ...v,
+      ...(v.primary_image !== undefined
+        ? { primary_image: imageUrl(v.primary_image) }
+        : {}),
+      ...(Array.isArray(v.images) ? { images: mapImageUrls(v.images) } : {}),
+    }));
+  }
+
+  return mapped;
+}
+
+/** Convenience helper for paginated lists: { items, meta } */
+export function mapProductList(data) {
+  if (!data) return data;
+  return {
+    ...data,
+    items: (data.items ?? []).map(mapProductImages),
   };
 }

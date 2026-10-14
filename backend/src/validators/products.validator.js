@@ -19,6 +19,7 @@ const create = [
   // ─── Stock ────────────────────────────────────────────
   body('stock_quantity').optional({ nullable: true }).isInt({ min: 0 }).toInt(),
   body('stock_mode').optional({ nullable: true }).isIn(['per_variant', 'shared']),
+  body('low_stock_threshold').optional({ nullable: true }).isInt({ min: 0 }).toInt(),
 
   // ─── Physical-only fields (allowed only when type=physical — enforced in service)
   body('condition').optional({ nullable: true }).isString().isLength({ max: 50 }),
@@ -76,7 +77,8 @@ const update = [
   // stock
   body('stock_quantity').optional({ nullable: true }).isInt({ min: 0 }).toInt(),
   body('stock_mode').optional({ nullable: true }).isIn(['per_variant', 'shared']),
-
+  body('low_stock_threshold').optional({ nullable: true }).isInt({ min: 0 }).toInt(),
+  
   // physical / digital specific
   body('condition').optional({ nullable: true }).isString().isLength({ max: 50 }),
   body('color').optional({ nullable: true }).isString().isLength({ max: 50 }),

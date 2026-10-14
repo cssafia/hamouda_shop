@@ -74,7 +74,13 @@ const orderRoutes = require('./src/modules/orders/orders.routes');
 app.use('/api/orders',       orderRoutes.publicRouter);
 app.use('/api/admin/orders', orderRoutes.adminRouter);
 
+const serviceRequestRoutes = require('./src/modules/serviceRequests/serviceRequests.routes');
+app.use('/api/service-requests',       serviceRequestRoutes.publicRouter);
+app.use('/api/admin/service-requests', serviceRequestRoutes.adminRouter);
+
+app.use('/api/admin/stock', require('./src/modules/stock/stock.routes'));
 app.use('/api/admin/notifications', require('./src/modules/notifications/notifications.routes'));
+app.use('/api/admin/analytics', require('./src/modules/analytics/analytics.routes'));
 
 // ─── 404 & errors ──────────────────────────────────────
 app.use(notFound);

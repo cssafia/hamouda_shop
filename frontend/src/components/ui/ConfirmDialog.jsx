@@ -31,6 +31,7 @@ export default function ConfirmDialog({
   cancelLabel = 'Cancel',
   variant = 'danger',
   loading = false,
+  children,           
 }) {
   useEffect(() => {
     if (!open) return
@@ -80,6 +81,9 @@ export default function ConfirmDialog({
             <LuX size={16} />
           </button>
         </div>
+
+        {/* ── CHILDREN RENDER HERE ── */}
+        {children && <div>{children}</div>}
 
         <div className="flex gap-2 justify-end pt-1">
           <button

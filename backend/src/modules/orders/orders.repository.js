@@ -76,33 +76,43 @@ async function getShipping(orderId) {
   return rows[0] || null;
 }
 
-async function list({ page, limit, status, order_type, search, date_from, date_to, sort }) {
+async function list({ page, limit, status, search, date_from, date_to, sort }) {
   const where = [];
   const params = [];
 
   if (status) { where.push(`o.status = ?`); params.push(status); }
-  if (order_type) { where.push(`o.order_type = ?`); params.push(order_type); }
   if (search) {
     where.push(`(o.customer_name LIKE ? OR o.customer_phone LIKE ? OR CAST(o.id AS CHAR) LIKE ?)`);
     const like = `%${search}%`;
     params.push(like, like, like);
   }
   if (date_from) { where.push(`o.created_at >= ?`); params.push(date_from); }
-  if (date_to) { where.push(`o.created_at <= ?`); params.push(date_to); }
+  if (date_to)   { where.push(`o.created_at <= ?`); params.push(date_to); }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
+  // Urgency priority: pending first, then confirmed, shipped, returned, completed, cancelled.
+  const statusPriority = `
+    FIELD(o.status,
+      'pending', 'confirmed', 'shipped', 'returned', 'completed', 'cancelled'
+    )
+  `;
+
   const sortMap = {
-    newest: 'o.created_at DESC',
-    oldest: 'o.created_at ASC',
-    amount_desc: 'o.total_amount DESC',
-    amount_asc: 'o.total_amount ASC',
+    newest:      `o.created_at DESC`,
+    oldest:      `o.created_at ASC`,
+    amount_desc: `o.total_amount DESC`,
+    amount_asc:  `o.total_amount ASC`,
   };
-  const orderBy = sortMap[sort] || 'o.created_at DESC';
+  // Default: status priority, then newest within same status.
+  const orderBy = sortMap[sort]
+    ? `${statusPriority} ASC, ${sortMap[sort]}`
+    : `${statusPriority} ASC, o.created_at DESC`;
+
   const offset = (page - 1) * limit;
 
   const [rows] = await pool.execute(
-    `SELECT o.id, o.customer_name, o.customer_phone, o.order_type, o.status,
+    `SELECT o.id, o.customer_name, o.customer_phone, o.status,
             o.total_amount, o.created_at,
             (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) AS items_count
        FROM orders o
@@ -118,6 +128,25 @@ async function list({ page, limit, status, order_type, search, date_from, date_t
   );
 
   return { rows, total: countRows[0].total };
+}
+
+async function listFirstItemsByOrderIds(orderIds, perOrder = 2) {
+  if (orderIds.length === 0) return [];
+  const ph = orderIds.map(() => '?').join(',');
+  const [rows] = await pool.execute(
+    `SELECT order_id, product_name, variant_name
+       FROM order_items
+      WHERE order_id IN (${ph})
+      ORDER BY id ASC`,
+    orderIds
+  );
+  // Group in memory, keep first N per order.
+  const byOrder = {};
+  for (const r of rows) {
+    if (!byOrder[r.order_id]) byOrder[r.order_id] = [];
+    if (byOrder[r.order_id].length < perOrder) byOrder[r.order_id].push(r);
+  }
+  return byOrder;
 }
 
 async function updateStatus(conn, id, status, extra = {}) {
@@ -145,5 +174,5 @@ module.exports = {
   insert, insertItems, insertShipping,
   findById, findByIdForUpdate,
   listItemsByOrder, getShipping, list,
-  updateStatus, updateShipping,
+  updateStatus, updateShipping, listFirstItemsByOrderIds
 };

@@ -1,9 +1,8 @@
 // src/constants/nav.js
 import {
-  LayoutDashboard, ShoppingCart, Inbox, Users,
-  Package, Repeat, Wrench,
+  LayoutDashboard, ShoppingCart, Inbox, 
+  Package, Repeat,
   Boxes, Ticket, BarChart3,
-  Settings,
 } from 'lucide-react'
 
 export const NAV_GROUPS = [
@@ -13,7 +12,6 @@ export const NAV_GROUPS = [
       { to: '/admin',            label: 'Dashboard', icon: LayoutDashboard, end: true, mobile: true },
       { to: '/admin/orders',     label: 'Orders',    icon: ShoppingCart,    mobile: true },
       { to: '/admin/requests',   label: 'Requests',  icon: Inbox,           mobile: true },
-      { to: '/admin/customers',  label: 'Customers', icon: Users },
     ],
   },
   {
@@ -21,7 +19,6 @@ export const NAV_GROUPS = [
     items: [
       { to: '/admin/products',        label: 'Products',      icon: Package, mobile: true },
       { to: '/admin/subscriptions',   label: 'Subscriptions', icon: Repeat },
-      { to: '/admin/services',        label: 'Services',      icon: Wrench },
     ],
   },
   {
@@ -32,12 +29,7 @@ export const NAV_GROUPS = [
       { to: '/admin/reports',  label: 'Reports',  icon: BarChart3 },
     ],
   },
-  {
-    label: 'System',
-    items: [
-      { to: '/admin/settings', label: 'Settings', icon: Settings },
-    ],
-  },
+
 ]
 
 // Bottom nav = items flagged `mobile: true` (4), plus a hardcoded "More" (5th)

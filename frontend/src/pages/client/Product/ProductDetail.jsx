@@ -102,7 +102,7 @@ export default function ProductDetail() {
     addCartItem.mutate(
       {
         product_id: product.id,
-        variant_id: selectedVariant?.id ?? undefined,
+        variant_id: selectedVariant?.id ?? null,
         quantity: isDigital ? 1 : quantity,
       },
       {

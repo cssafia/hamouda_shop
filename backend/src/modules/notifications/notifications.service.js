@@ -1,3 +1,4 @@
+'use strict';
 
 const ApiError = require('../../utils/apiError');
 const repo = require('./notifications.repository');
@@ -22,6 +23,30 @@ async function onNewServiceRequest(conn, request) {
   });
 }
 
+// Fire only on downward crossing of the product's notify_below threshold.
+// Returns null or { product, newTotal } so the caller can send an email after commit.
+async function checkAndNotifyLowStock(conn, { product, variant, threshold, prevQty, newQty }) {
+  if (threshold == null) return null;
+  if (!(prevQty >= threshold && newQty < threshold)) return null;
+
+  const label = variant ? `${product.name} — ${variant.name}` : product.name;
+
+  await repo.insert(conn, {
+    type: 'low_stock',
+    title: `Low stock: ${label}`,
+    message: `Stock is ${newQty} (threshold: ${threshold})`,
+    related_type: 'product',
+    related_id: product.id,
+  });
+
+  return {
+    productName: product.name,
+    variantName: variant ? variant.name : null,
+    newQty,
+    threshold,
+  };
+}
+
 async function list(query) {
   const page = query.page || 1;
   const limit = query.limit || 20;
@@ -34,8 +59,7 @@ async function list(query) {
 }
 
 async function unreadCount() {
-  const count = await repo.countUnread();
-  return { count };
+  return { count: await repo.countUnread() };
 }
 
 async function markRead(id) {
@@ -50,6 +74,7 @@ async function markAllRead() {
 module.exports = {
   onNewOrder,
   onNewServiceRequest,
+  checkAndNotifyLowStock,
   list,
   unreadCount,
   markRead,

@@ -23,7 +23,9 @@ function parseMultipart(req, res, next) {
 
 function filesToUrls(files) {
   if (!files || files.length === 0) return [];
-  return files.map((f) => `/uploads/${f.filename}`);
+  return files.map((f) =>
+    f.path && f.path.startsWith('http') ? f.path : `/uploads/${f.filename}`
+  );
 }
 
 function buildImages(body, uploadedUrls) {
@@ -70,7 +72,6 @@ const listPublic = asyncHandler(async (req, res) => {
 
 const getPublicById = asyncHandler(async (req, res) => {
   const data = await service.getPublicById(req.params.id);
-  console.log(res, data);
   return success(res, data, 'Product');
 });
 

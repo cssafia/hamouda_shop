@@ -13,7 +13,9 @@ export async function getCart({ coupon } = {}) {
 
 export async function addCartItem({ product_id, variant_id, quantity = 1 }) {
   const body = { product_id, quantity }
-  if (variant_id) body.variant_id = variant_id
+
+  if (variant_id !== undefined) body.variant_id = variant_id
+
   const { data } = await apiClient.post('/cart/items', body, withSession())
   return data.data
 }

@@ -54,3 +54,42 @@ export function discountPercent(price, promo) {
   if (!price || !promo || promo >= price) return 0
   return Math.round(((price - promo) / price) * 100)
 }
+
+/* ---------- Phone for WhatsApp deep links ---------- */
+
+export function formatPhoneForWhatsApp(phone) {
+  if (!phone) return ''
+  const digits = String(phone).replace(/\D/g, '')
+  if (digits.startsWith('00213')) return digits.slice(2)
+  if (digits.startsWith('213') && digits.length >= 12) return digits
+  if (digits.startsWith('0') && digits.length === 10) return '213' + digits.slice(1)
+  if (digits.length === 9) return '213' + digits
+  return digits
+}
+
+/* ---------- Backend date-time formatting ---------- */
+/**
+ * Converts a date input value (YYYY-MM-DD) to the backend format
+ * "YYYY-MM-DD HH:MM:SS".
+ *   startOfDay  → "2026-10-10 00:00:00"
+ *   endOfDay    → "2026-10-10 23:59:59"
+ * Returns null when the input is empty.
+ */
+export function toBackendStartOfDay(dateStr) {
+  if (!dateStr) return null
+  return `${dateStr} 00:00:00`
+}
+
+export function toBackendEndOfDay(dateStr) {
+  if (!dateStr) return null
+  return `${dateStr} 23:59:59`
+}
+
+/**
+ * Extracts the "YYYY-MM-DD" part from either backend format.
+ * Works for "2026-10-10 00:00:00" AND "2026-10-10T00:00:00.000Z".
+ */
+export function toDateInputValue(dateStr) {
+  if (!dateStr) return ''
+  return String(dateStr).slice(0, 10)
+}

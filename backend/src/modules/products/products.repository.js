@@ -81,50 +81,86 @@ async function listPublic({
     : '';
   const usageParam = usage ? [usage] : [];
 
+  // Variant count only — cheap aggregation
   const variantStatsJoin = `
     LEFT JOIN (
-      SELECT product_id,
-             MIN(CASE WHEN stock_quantity > 0 THEN price END) AS min_avail_price,
-             MIN(price) AS min_price,
-             MAX(price) AS max_price,
-             SUM(stock_quantity) AS total_stock,
-             COUNT(*) AS variant_count
+      SELECT product_id, COUNT(*) AS variant_count
         FROM product_variants
        WHERE is_active = 1
        GROUP BY product_id
-    ) v ON v.product_id = p.id
+    ) vp ON vp.product_id = p.id
   `;
 
-  const priceExpr = `
+  // Cheapest active variant (prefers in-stock, then lowest paid price)
+  const cheapestVariantJoin = `
+    LEFT JOIN product_variants cv
+      ON cv.id = (
+        SELECT v2.id
+          FROM product_variants v2
+         WHERE v2.product_id = p.id
+           AND v2.is_active = 1
+         ORDER BY
+           CASE WHEN v2.stock_quantity > 0 THEN 0 ELSE 1 END ASC,
+           LEAST(v2.price, COALESCE(v2.promotional_price, v2.price)) ASC,
+           v2.id ASC
+         LIMIT 1
+      )
+  `;
+
+  // Base paid (regular vs promo)
+  const basePaid = `LEAST(p.price, COALESCE(p.promotional_price, p.price))`;
+  // Variant paid
+  const cvPaid   = `LEAST(cv.price, COALESCE(cv.promotional_price, cv.price))`;
+
+  // Winner: base if no variant OR base is <= variant
+  const baseWins = `
     CASE
-      WHEN v.variant_count > 0 THEN COALESCE(v.min_avail_price, v.min_price)
-      ELSE p.price
+      WHEN cv.id IS NULL THEN 1
+      WHEN ${basePaid} <= ${cvPaid} THEN 1
+      ELSE 0
     END
+  `;
+
+  // Display price and promo — from the SAME source
+  const displayPrice = `
+    CASE WHEN ${baseWins} = 1 THEN p.price ELSE cv.price END
+  `;
+  const displayPromo = `
+    CASE WHEN ${baseWins} = 1 THEN p.promotional_price ELSE cv.promotional_price END
+  `;
+
+  // paid_price — used for filter and sort
+  const paidPrice = `
+    LEAST(${basePaid}, COALESCE(${cvPaid}, 999999999))
   `;
 
   const availabilityExpr = `
     CASE
       WHEN p.product_type = 'digital' THEN 1
       WHEN p.stock_mode = 'shared' THEN (p.stock_quantity > 0)
-      WHEN v.variant_count > 0 THEN (v.min_avail_price IS NOT NULL)
+      WHEN COALESCE(vp.variant_count, 0) > 0 THEN (
+        SELECT 1 FROM product_variants v3
+         WHERE v3.product_id = p.id AND v3.is_active = 1 AND v3.stock_quantity > 0
+         LIMIT 1
+      ) IS NOT NULL
       WHEN p.stock_quantity > 0 THEN 1
       ELSE 0
     END
   `;
 
-  // Outer filters applied after the subquery — this is where MariaDB can see the aliases.
+  // Outer filters (aliases visible here)
   const outerWhere = [];
   const outerParams = [];
-  if (price_min !== undefined) { outerWhere.push(`effective_price >= ?`); outerParams.push(price_min); }
-  if (price_max !== undefined) { outerWhere.push(`effective_price <= ?`); outerParams.push(price_max); }
+  if (price_min !== undefined) { outerWhere.push(`paid_price >= ?`); outerParams.push(price_min); }
+  if (price_max !== undefined) { outerWhere.push(`paid_price <= ?`); outerParams.push(price_max); }
   if (availability === 'available')    outerWhere.push(`is_available = 1`);
   if (availability === 'out_of_stock') outerWhere.push(`is_available = 0`);
   const outerWhereSql = outerWhere.length ? `WHERE ${outerWhere.join(' AND ')}` : '';
 
   const sortMap = {
     newest:     'created_at DESC',
-    price_asc:  'effective_price ASC',
-    price_desc: 'effective_price DESC',
+    price_asc:  'paid_price ASC',
+    price_desc: 'paid_price DESC',
     name_asc:   'name ASC',
     name_desc:  'name DESC',
   };
@@ -135,18 +171,21 @@ async function listPublic({
     SELECT
       p.id, p.name, p.product_type,
       p.condition, p.color, p.included_accessories,
-      p.duration, p.version, p.promotional_price,
+      p.duration, p.version,
       p.created_at,
       c.id AS category_id, c.name AS category_name,
       b.id AS brand_id, b.name AS brand_name,
-      ${priceExpr} AS effective_price,
-      (v.variant_count > 0) AS has_variants,
+      ${displayPrice}  AS display_price,
+      ${displayPromo}  AS display_promo,
+      ${paidPrice}     AS paid_price,
+      (COALESCE(vp.variant_count, 0) > 0) AS has_variants,
       ${availabilityExpr} AS is_available
     FROM products p
     JOIN categories c ON c.id = p.category_id
     LEFT JOIN brands b ON b.id = p.brand_id
     ${usageJoin}
     ${variantStatsJoin}
+    ${cheapestVariantJoin}
     WHERE ${where.join(' AND ')}
   `;
 
@@ -175,7 +214,7 @@ async function listPublic({
     ...outerParams,
   ]);
 
-  return { rows, total: countRows[0].total };
+  return { rows, total: Number(countRows[0].total) };
 }
 
 // ─── Writes ────────────────────────────────────────────
@@ -183,22 +222,24 @@ async function listPublic({
 async function insert(conn, data) {
   const {
     category_id, brand_id, name, product_type, description,
-    price, promotional_price, profit, stock_quantity,
+    price, promotional_price, profit, stock_quantity, stock_mode,
     condition, color, included_accessories, duration, version,
+    low_stock_threshold,
   } = data;
 
   const [result] = await conn.execute(
     `INSERT INTO products
       (category_id, brand_id, name, product_type, description,
-       price, promotional_price, profit, stock_quantity,
+       price, promotional_price, profit, stock_quantity, stock_mode,
        \`condition\`, color, included_accessories,
-       duration, version, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+       duration, version, low_stock_threshold, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     [
       category_id, brand_id, name, product_type, description ?? null,
-      price ?? 0, promotional_price ?? null, profit ?? 0, stock_quantity ?? null,
+      price ?? 0, promotional_price ?? null, profit ?? 0,
+      stock_quantity ?? null, stock_mode ?? null,
       condition ?? null, color ?? null, included_accessories ?? null,
-      duration ?? null, version ?? null,
+      duration ?? null, version ?? null, low_stock_threshold ?? null,
     ]
   );
   return result.insertId;

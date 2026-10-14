@@ -12,6 +12,7 @@ const REQUIRED = [
   'CORS_ORIGIN',
   'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS',
     'MAIL_FROM_EMAIL', 'SUPERADMIN_EMAIL','FRONTEND_URL'
+    
 ];
 
 const missing = REQUIRED.filter((key) => !(key in process.env));
@@ -63,9 +64,17 @@ module.exports = {
   bodyLimit: process.env.BODY_LIMIT || '1mb',
 
   upload: {
-    dir: process.env.UPLOAD_DIR || 'storage/uploads',
-    maxFileSize: toInt(process.env.MAX_FILE_SIZE, 5 * 1024 * 1024),
-  },
+  dir: process.env.UPLOAD_DIR || 'storage/uploads',
+  maxFileSize: toInt(process.env.MAX_FILE_SIZE, 5 * 1024 * 1024),
+  driver: process.env.UPLOAD_DRIVER || 'local',
+},
+
+cloudinary: {
+  cloudName: process.env.CLOUDINARY_CLOUD_NAME || null,
+  apiKey: process.env.CLOUDINARY_API_KEY || null,
+  apiSecret: process.env.CLOUDINARY_API_SECRET || null,
+  folder: process.env.CLOUDINARY_FOLDER || 'hamouda-shop',
+},
   smtp: {
     host: process.env.SMTP_HOST,
     port: toInt(process.env.SMTP_PORT, 587),

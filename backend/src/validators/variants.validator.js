@@ -11,6 +11,7 @@ const create = [
   body('overrides').optional().isArray(),
   body('overrides.*.name').isString().isLength({ min: 1, max: 100 }),
   body('overrides.*.value').isString(),
+  body('low_stock_threshold').optional({ nullable: true }).isInt({ min: 0 }).toInt(),
 ];
 
 const update = [
@@ -24,6 +25,7 @@ const update = [
   body('overrides').optional().isArray(),
   body('overrides.*.name').isString().isLength({ min: 1, max: 100 }),
   body('overrides.*.value').isString(),
+  body('low_stock_threshold').optional({ nullable: true }).isInt({ min: 0 }).toInt(),
 ];
 
 const status = [body('is_active').isBoolean().toBoolean()];

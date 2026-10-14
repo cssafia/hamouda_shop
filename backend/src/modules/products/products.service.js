@@ -379,21 +379,24 @@ async function listPublic(query) {
     return acc;
   }, {});
 
-  const items = rows.map((p) => ({
+  const items = rows.map((p) => {
+  const price = Number(p.display_price);
+  const promo = p.display_promo != null ? Number(p.display_promo) : null;
+  return {
     id: p.id,
     name: p.name,
     product_type: p.product_type,
     category: { id: p.category_id, name: p.category_name },
     brand: p.brand_id ? { id: p.brand_id, name: p.brand_name } : null,
-    price: Number(p.effective_price),
-    promotional_price: p.promotional_price != null ? Number(p.promotional_price) : null,
-    is_on_promo: p.promotional_price != null && Number(p.promotional_price) < Number(p.effective_price),
+    price,
+    promotional_price: promo,
+    is_on_promo: promo != null && promo < price,
     has_variants: !!p.has_variants,
     availability: p.is_available ? 'available' : 'out_of_stock',
     primary_image: primaryByProduct[p.id] || null,
     usages: usagesByProduct[p.id] || [],
-  }));
-
+  };
+});
   return { items, meta: { page, limit, total, pages: Math.ceil(total / limit) } };
 }
 
@@ -557,7 +560,8 @@ async function update(id, input) {
   const allowed = [
     'category_id', 'brand_id', 'name', 'description',
     'price', 'promotional_price', 'profit', 'stock_quantity', 'stock_mode',
-    'condition', 'color', 'included_accessories', 'duration', 'version', 'is_active',
+    'condition', 'color', 'included_accessories', 'duration', 'version',
+    'low_stock_threshold', 'is_active',
   ];
   for (const k of allowed) if (input[k] !== undefined) fields[k] = input[k];
 

@@ -1,6 +1,6 @@
 // src/components/admin/TopBar.jsx
-import { Search, Bell } from 'lucide-react'
 import { SHOP_NAME } from '../../constants/config'
+import NotificationBell from '../../components/admin/notifications/NotificationBell'
 
 export default function TopBar() {
   return (
@@ -11,25 +11,12 @@ export default function TopBar() {
         </span>
 
         <div className="ml-auto flex items-center gap-1">
-          <IconBtn aria-label="Search"><Search size={18} /></IconBtn>
-          <IconBtn aria-label="Notifications"><Bell size={18} /></IconBtn>
+          <NotificationBell />
           <div className="ml-2 w-8 h-8 rounded-full bg-brand-500 text-white text-xs font-semibold flex items-center justify-center select-none">
-            {/* initials — wire to admin.name later */}
             A
           </div>
         </div>
       </div>
     </header>
-  )
-}
-
-function IconBtn({ children, ...rest }) {
-  return (
-    <button
-      className="w-9 h-9 rounded-full text-ink-600 hover:bg-surface-subtle hover:text-ink-900 flex items-center justify-center transition-colors"
-      {...rest}
-    >
-      {children}
-    </button>
   )
 }

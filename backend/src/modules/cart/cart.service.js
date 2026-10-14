@@ -60,6 +60,13 @@ async function loadLineDetails(items) {
   };
 }
 
+// variant_id = null means "the base config / base plan" (variant 0).
+// Mode-aware availability:
+//   digital         → always available while active
+//   shared          → pool decides (product.stock_quantity)
+//   per_variant     → variant_id null → product.stock_quantity (base)
+//                     variant_id set  → variant.stock_quantity
+//   no variants     → product.stock_quantity
 function computeAvailability(product, variant) {
   if (!product || !product.is_active) return 'unavailable';
   if (product.product_type === 'digital') return 'available';
@@ -145,41 +152,48 @@ async function getCart(sessionId, couponCode) {
   return buildCartView(cart, couponCode);
 }
 
+// Mode-aware stock check for one cart line.
+//   digital      → no stock
+//   shared       → product.stock_quantity is the pool (variant ignored)
+//   per_variant  → variant_id set: variant.stock_quantity
+//                  variant_id null: product.stock_quantity (base config)
+//   no variants  → product.stock_quantity
 async function checkStockForProduct(product, variant, totalQty) {
   if (product.product_type === 'digital') return;
+
   if (product.stock_mode === 'shared') {
     if ((product.stock_quantity ?? 0) < totalQty) {
       throw ApiError.badRequest('Not enough stock');
     }
     return;
   }
+
   if (variant) {
     if ((variant.stock_quantity ?? 0) < totalQty) {
       throw ApiError.badRequest('Not enough stock');
     }
     return;
   }
+
   if ((product.stock_quantity ?? 0) < totalQty) {
     throw ApiError.badRequest('Not enough stock');
   }
 }
 
+// variant_id = null is ALWAYS valid — it means "the base config / base plan"
+// (variant 0). This applies to every product type:
+//   - single-config physical (no variants)
+//   - physical shared (base price, pool stock)
+//   - physical per_variant (base config with its own stock on products.stock_quantity)
+//   - digital single-plan
+//   - digital multi-plan (base plan lives on product row)
+// If variant_id is provided, it must exist and belong to this product.
 async function addItem(sessionId, { product_id, variant_id, quantity }) {
   const cart = await repo.findOrCreate(sessionId);
 
   const product = await productsRepo.findById(product_id);
   if (!product || !product.is_active) {
     throw ApiError.notFound('Product not found or inactive');
-  }
-
-  const variantCount = await variantsRepo.countByProduct(product_id, true);
-  const hasVariants = variantCount > 0;
-
-  if (hasVariants && !variant_id) {
-    throw ApiError.badRequest('This product requires choosing a variant');
-  }
-  if (!hasVariants && variant_id) {
-    throw ApiError.badRequest('This product has no variants');
   }
 
   let variant = null;
