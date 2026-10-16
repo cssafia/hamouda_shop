@@ -13,6 +13,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png', 'icons/*.jpg', 'favicon.ico'],
 
+      /* Don't auto-register the SW via a script tag in index.html.
+         We control the manifest link from the React hook. */
+      injectRegister: null,
+
       /* ---------------- Manifest ---------------- */
       manifest: {
         name: 'Hammouda Shop Admin',
@@ -119,6 +123,17 @@ export default defineConfig({
             handler: 'NetworkOnly',
           },
         ],
+      },
+
+      /* ---------------- Strip the auto-injected manifest link ---------------- */
+      /* VitePWA writes <link rel="manifest" href="/manifest.webmanifest"> into
+         index.html at build time. We remove it here — the React hook
+         (usePWAManifest) adds it back on /admin/* routes only. */
+      transformIndexHtml(html) {
+        return html.replace(
+          /<link[^>]*rel="manifest"[^>]*>\s*/gi,
+          ''
+        )
       },
 
       /* ---------------- Dev ---------------- */
