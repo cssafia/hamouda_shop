@@ -1,11 +1,14 @@
+'use strict';
+
 const repo = require('./analytics.repository');
 const {
   parsePeriod,
   parseRange,
   delta,
+  fillSeries,
 } = require('./analytics.helpers');
 
-/* ─── Dashboard ─────────────────────────────────────────────── */
+/* ─── Dashboard ───────────────────────────────────────────── */
 
 async function getPriority() {
   const [pending_orders, confirmed_orders, stock_issues, new_requests] =
@@ -47,7 +50,11 @@ async function getDashboardRevenue({ period = '7d', metric = 'revenue' }) {
     repo.revenueSeries({ from: previousFrom, to: previousTo, group }),
   ]);
 
-  const total = points.reduce((s, p) => s + Number(p[metric]), 0);
+  const dense = fillSeries(from, to, group, points, {
+    revenue: 0, profit: 0, orders_count: 0,
+  });
+
+  const total = dense.reduce((s, p) => s + Number(p[metric]), 0);
   const previous_total = previousPoints.reduce((s, p) => s + Number(p[metric]), 0);
 
   return {
@@ -57,7 +64,7 @@ async function getDashboardRevenue({ period = '7d', metric = 'revenue' }) {
     total,
     previous_total,
     delta: delta(total, previous_total),
-    points: points.map((p) => ({
+    points: dense.map((p) => ({
       date: p.date,
       value: Number(p[metric]),
       orders_count: p.orders_count,
@@ -65,7 +72,7 @@ async function getDashboardRevenue({ period = '7d', metric = 'revenue' }) {
   };
 }
 
-/* ─── Reports ───────────────────────────────────────────────── */
+/* ─── Reports ─────────────────────────────────────────────── */
 
 async function getReportsSummary({ from, to }) {
   const range = parseRange(from, to);
@@ -80,10 +87,11 @@ async function getReportsSummary({ from, to }) {
     to: range.to.toISOString(),
     group: range.group,
     summary: {
-      revenue:          { value: current.revenue,           previous: previous.revenue,           delta: delta(current.revenue, previous.revenue) },
-      profit:           { value: current.profit,            previous: previous.profit,            delta: delta(current.profit, previous.profit) },
-      orders_count:     { value: current.orders_count,      previous: previous.orders_count,      delta: delta(current.orders_count, previous.orders_count) },
-      average_order_value: { value: current.average_order_value, previous: previous.average_order_value, delta: delta(current.average_order_value, previous.average_order_value) },
+      revenue:              { value: current.revenue,              previous: previous.revenue,              delta: delta(current.revenue, previous.revenue) },
+      profit:               { value: current.profit,               previous: previous.profit,               delta: delta(current.profit, previous.profit) },
+      orders_count:         { value: current.orders_count,         previous: previous.orders_count,         delta: delta(current.orders_count, previous.orders_count) },
+      average_order_value:  { value: current.average_order_value,  previous: previous.average_order_value,  delta: delta(current.average_order_value, previous.average_order_value) },
+      services_completed:   { value: current.services_completed,   previous: previous.services_completed,   delta: delta(current.services_completed, previous.services_completed) },
     },
   };
 }
@@ -96,10 +104,14 @@ async function getReportsRevenue({ from, to }) {
     repo.revenueSeries({ from: range.previousFrom, to: range.previousTo, group: range.group }),
   ]);
 
-  const totalRevenue = points.reduce((s, p) => s + p.revenue, 0);
-  const totalProfit = points.reduce((s, p) => s + p.profit, 0);
-  const prevRevenue = previousPoints.reduce((s, p) => s + p.revenue, 0);
-  const prevProfit = previousPoints.reduce((s, p) => s + p.profit, 0);
+  const dense = fillSeries(range.from, range.to, range.group, points, {
+    revenue: 0, profit: 0, orders_count: 0,
+  });
+
+  const totalRevenue = dense.reduce((s, p) => s + p.revenue, 0);
+  const totalProfit  = dense.reduce((s, p) => s + p.profit, 0);
+  const prevRevenue  = previousPoints.reduce((s, p) => s + p.revenue, 0);
+  const prevProfit   = previousPoints.reduce((s, p) => s + p.profit, 0);
 
   const margin_pct = totalRevenue > 0
     ? Math.round((totalProfit / totalRevenue) * 1000) / 10
@@ -109,7 +121,7 @@ async function getReportsRevenue({ from, to }) {
     from: range.from.toISOString(),
     to: range.to.toISOString(),
     group: range.group,
-    points,
+    points: dense,
     totals: {
       revenue: totalRevenue,
       profit: totalProfit,
@@ -123,36 +135,56 @@ async function getReportsRevenue({ from, to }) {
 async function getReportsOrders({ from, to }) {
   const range = parseRange(from, to);
 
-  const [points, stats] = await Promise.all([
-    repo.ordersByStatusSeries({ from: range.from, to: range.to, group: range.group }),
+  const [breakdown, stats] = await Promise.all([
+    repo.ordersBreakdown({ from: range.from, to: range.to }),
     repo.cancellationStats({ from: range.from, to: range.to }),
   ]);
+
+  const total = Object.values(breakdown).reduce((s, n) => s + n, 0);
 
   return {
     from: range.from.toISOString(),
     to: range.to.toISOString(),
-    group: range.group,
-    points,
-    totals: stats,
+    total,
+    breakdown,
+    totals: {
+      cancelled: stats.cancelled,
+      cancel_rate: stats.cancel_rate,
+      top_cancel_reason: stats.top_cancel_reason,
+    },
   };
 }
 
 async function getTopProducts({ from, to, limit = 10 }) {
   const range = parseRange(from, to);
   const items = await repo.topProducts({ from: range.from, to: range.to, limit });
-  return { from: range.from.toISOString(), to: range.to.toISOString(), items };
+  return {
+    from: range.from.toISOString(),
+    to: range.to.toISOString(),
+    items,
+  };
 }
 
 async function getTopCategories({ from, to, limit = 10 }) {
   const range = parseRange(from, to);
-  const items = await repo.topCategories({ from: range.from, to: range.to, limit });
-  return { from: range.from.toISOString(), to: range.to.toISOString(), items };
+  const result = await repo.topCategories({ from: range.from, to: range.to, limit });
+  return {
+    from: range.from.toISOString(),
+    to: range.to.toISOString(),
+    total: result.total,
+    items: result.items,
+  };
 }
 
 async function getTopWilayas({ from, to, limit = 10 }) {
   const range = parseRange(from, to);
-  const items = await repo.topWilayas({ from: range.from, to: range.to, limit });
-  return { from: range.from.toISOString(), to: range.to.toISOString(), items };
+  const result = await repo.topWilayas({ from: range.from, to: range.to, limit });
+  return {
+    from: range.from.toISOString(),
+    to: range.to.toISOString(),
+    total: result.total,
+    items: result.items,
+  };
 }
 
 module.exports = {

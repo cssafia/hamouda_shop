@@ -1,6 +1,8 @@
 // src/components/admin/TopBar.jsx
-import { SHOP_NAME } from '../../constants/config'
-import NotificationBell from '../../components/admin/notifications/NotificationBell'
+import { LuExternalLink } from 'react-icons/lu'
+import { SHOP_NAME, STORE_URL } from '../../constants/config'
+import NotificationBell from './notifications/NotificationBell'
+import ProfileMenu from './ProfileMenu'
 
 export default function TopBar() {
   return (
@@ -11,10 +13,20 @@ export default function TopBar() {
         </span>
 
         <div className="ml-auto flex items-center gap-1">
+          {/* Voir la boutique — opens the storefront in a new tab */}
+          <a
+            href={STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Voir la boutique"
+            title="Voir la boutique"
+            className="w-9 h-9 rounded-full text-ink-600 hover:bg-surface-subtle hover:text-ink-900 flex items-center justify-center transition-colors"
+          >
+            <LuExternalLink size={16} />
+          </a>
+
           <NotificationBell />
-          <div className="ml-2 w-8 h-8 rounded-full bg-brand-500 text-white text-xs font-semibold flex items-center justify-center select-none">
-            A
-          </div>
+          <ProfileMenu />
         </div>
       </div>
     </header>

@@ -81,7 +81,7 @@ async function complete(id, profit) {
     throw ApiError.badRequest('Only pending requests can be completed');
   }
 
-  await repo.updateStatus(id, 'completed', profit);
+  await repo.markCompleted(id, profit);
   return getById(id);
 }
 

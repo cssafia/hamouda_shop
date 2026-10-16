@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { LuMenu, LuSearch, LuCpu, LuMessageCircle } from 'react-icons/lu';
+import { LuMenu, LuSearch, LuCpu } from 'react-icons/lu';
 import { useCategories } from '../../features/categories/useCategories.js';
-import { SHOP_NAME, WHATSAPP_NUMBER } from '../../constants/config.js';
+import { SHOP_NAME } from '../../constants/config.js';
 import CartIcon from './CartIcon.jsx';
 import MobileMenuSheet from './MobileMenuSheet.jsx';
 import SearchOverlay from './SearchOverlay.jsx';

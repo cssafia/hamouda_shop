@@ -61,4 +61,16 @@ async function updateStatus(id, status, profit) {
   return result.affectedRows;
 }
 
-module.exports = { insert, findById, list, updateStatus };
+async function markCompleted(id, profit) {
+  const [r] = await pool.execute(
+    `UPDATE service_requests
+        SET status = 'completed',
+            profit = ?,
+            completed_at = NOW()
+      WHERE id = ?`,
+    [profit, id]
+  );
+  return r.affectedRows;
+}
+
+module.exports = { insert, findById, list, updateStatus, markCompleted };

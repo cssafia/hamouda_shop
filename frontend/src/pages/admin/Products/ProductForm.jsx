@@ -29,9 +29,9 @@ import Skeleton from '../../../components/ui/Skeleton'
 import EntityPicker from '../../../components/ui/EntityPicker'
 import { toast } from '../../../components/ui/Toast'
 
-import SpecsEditor from '../../../components/product/SpecsEditor'
-import ImageDropzone from '../../../components/product/ImageDropzone'
-import VariantsEditor from '../../../components/product/VariantsEditor'
+import SpecsEditor from '../../../components/admin/product/SpecsEditor'
+import ImageDropzone from '../../../components/admin/product/ImageDropzone'
+import VariantsEditor from '../../../components/admin/product/VariantsEditor'
 
 const BASE_PATH = '/admin/products'
 

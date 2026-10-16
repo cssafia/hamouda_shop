@@ -159,17 +159,9 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="border-t border-brand-100 mt-8 pt-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-ink-600">
           <p>
-            © 2026 {SHOP_NAME}. Tous droits réservés.
+            © {new Date().getFullYear()} {SHOP_NAME}. Tous droits réservés.
           </p>
 
-          <div className="flex items-center gap-4">
-            <Link to="/legal" className="hover:text-brand-600 transition-colors">
-              Mentions légales
-            </Link>
-            <Link to="/terms" className="hover:text-brand-600 transition-colors">
-              CGV
-            </Link>
-          </div>
         </div>
 
         {/* Credit */}

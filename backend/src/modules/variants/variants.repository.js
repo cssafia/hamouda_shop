@@ -77,7 +77,7 @@ async function update(id, fields, conn = null) {
   const keys = Object.keys(fields);
   if (!keys.length) return 0;
   const setClause = keys.map((k) => `\`${k}\` = ?`).join(', ');
-  const values = keys.map((k) => fields[k]);
+  const values = keys.map((k) => fields[k] ?? null);
   const executor = conn || pool;
   const [result] = await executor.execute(
     `UPDATE product_variants SET ${setClause} WHERE id = ?`,

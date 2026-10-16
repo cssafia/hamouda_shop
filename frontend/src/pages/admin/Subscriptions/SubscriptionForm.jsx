@@ -28,7 +28,7 @@ import Button from '../../../components/ui/Button'
 import Skeleton from '../../../components/ui/Skeleton'
 import EntityPicker from '../../../components/ui/EntityPicker'
 import { toast } from '../../../components/ui/Toast'
-import ImageDropzone from '../../../components/product/ImageDropzone'
+import ImageDropzone from '../../../components/admin/product/ImageDropzone'
 
 const BASE_PATH = '/admin/subscriptions'
 

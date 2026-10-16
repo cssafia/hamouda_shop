@@ -497,6 +497,8 @@ async function update(id, input) {
   assertTypeRules(product.product_type, input);
   validateUsages(input.usages);
 
+  const isDigital = product.product_type === 'digital';
+
   // ── Existing variants in DB
   const existingVariants = await variantsRepo.listByProduct(id, false);
   const existingIds = new Set(existingVariants.map((v) => v.id));
@@ -531,7 +533,7 @@ async function update(id, input) {
         for (const v of list) {
           if (v.stock_quantity === null || v.stock_quantity === undefined) {
             throw ApiError.badRequest(
-              `Variant "${v.name || 'unnamed'}" needs a stock_quantity in per-variant mode`
+              `Variant "${v.name || v.duration || 'unnamed'}" needs a stock_quantity in per-variant mode`
             );
           }
         }
@@ -565,7 +567,7 @@ async function update(id, input) {
   ];
   for (const k of allowed) if (input[k] !== undefined) fields[k] = input[k];
 
-  if (product.product_type === 'digital') {
+  if (isDigital) {
     fields.stock_quantity = null;
     fields.stock_mode = null;
   } else {
@@ -589,10 +591,23 @@ async function update(id, input) {
       // 2) Insert new + update existing
       for (const v of incoming) {
         const isShared = newMode === 'shared';
-        const stock = isShared ? null : (v.stock_quantity ?? 0);
+        const stock = (isDigital || isShared) ? null : (v.stock_quantity ?? 0);
+
+        // Digital: name is derived from duration. Physical: name is required.
+        const name = isDigital
+          ? (v.name || v.duration)
+          : v.name;
+
+        if (!name) {
+          throw ApiError.badRequest(
+            isDigital
+              ? 'Digital variant requires a duration'
+              : 'Variant name is required'
+          );
+        }
 
         const payload = {
-          name: v.name,
+          name,
           price: v.price,
           promotional_price: v.promotional_price ?? null,
           profit: v.profit ?? product.profit ?? 0,
@@ -631,7 +646,7 @@ async function update(id, input) {
       await variantsRepo.nullifyStockByProduct(conn, id);
     }
 
-    // ── Usages / base specs / images — unchanged
+    // ── Usages / base specs / images
     if (input.usages !== undefined) {
       await repo.deleteUsages(conn, id);
       if (input.usages.length) await repo.insertUsages(conn, id, input.usages);

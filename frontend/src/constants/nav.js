@@ -1,7 +1,7 @@
 // src/constants/nav.js
 import {
   LayoutDashboard, ShoppingCart, Inbox, 
-  Package, Repeat,
+  Package, Repeat,Tag,
   Boxes, Ticket, BarChart3,
 } from 'lucide-react'
 
@@ -19,6 +19,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/admin/products',        label: 'Products',      icon: Package, mobile: true },
       { to: '/admin/subscriptions',   label: 'Subscriptions', icon: Repeat },
+      { to: '/admin/catalog', label: 'Marques & Catégories', icon: Tag },
     ],
   },
   {

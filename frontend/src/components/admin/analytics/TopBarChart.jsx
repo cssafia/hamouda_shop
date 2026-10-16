@@ -2,17 +2,28 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
 } from 'recharts'
 import ChartTooltip from './ChartTooltip'
 
-/* Gradient pairs per tone */
-const GRADIENTS = {
-  brand:  { from: '#1d4ed8', to: '#60a5fa' },
-  violet: { from: '#6d28d9', to: '#a78bfa' },
-  teal:   { from: '#0d9488', to: '#5eead4' },
-  success:{ from: '#16a34a', to: '#86efac' },
-  warning:{ from: '#d97706', to: '#fbbf24' },
+/* Palettes per tone — many distinct colors */
+const PALETTES = {
+  brand: [
+    '#1e3a8a', '#1d4ed8', '#2563eb', '#3b82f6',
+    '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe',
+  ],
+  violet: [
+    '#4c1d95', '#5b21b6', '#6d28d9', '#7c3aed',
+    '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe',
+  ],
+  teal: [
+    '#134e4a', '#0d9488', '#14b8a6', '#2dd4bf',
+    '#5eead4', '#99f6e4', '#ccfbf1', '#f0fdfa',
+  ],
+  warm: [
+    '#7c2d12', '#b45309', '#d97706', '#f59e0b',
+    '#fbbf24', '#fcd34d', '#fde68a', '#fef3c7',
+  ],
 }
 
 export default function TopBarChart({
@@ -21,15 +32,14 @@ export default function TopBarChart({
   items = [],
   dataKey = 'orders_count',
   labelKey = 'name',
-  tone = 'brand',                 // brand | violet | teal | success | warning
+  tone = 'brand',
   isLoading,
   emptyLabel = 'Pas de données sur cette période.',
   onItemClick,
   wilayaNames = {},
 }) {
   const navigate = useNavigate()
-  const gradient = GRADIENTS[tone] ?? GRADIENTS.brand
-  const gradId = `topGrad-${tone}`
+  const palette = PALETTES[tone] ?? PALETTES.brand
 
   const chartData = useMemo(() => {
     return items.map((it) => {
@@ -79,13 +89,6 @@ export default function TopBarChart({
               margin={{ top: 4, right: 48, bottom: 4, left: 4 }}
               barCategoryGap="22%"
             >
-              <defs>
-                <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%"  stopColor={gradient.from} />
-                  <stop offset="100%" stopColor={gradient.to} />
-                </linearGradient>
-              </defs>
-
               <XAxis type="number" hide domain={[0, maxValue]} />
               <YAxis
                 type="category"
@@ -95,7 +98,6 @@ export default function TopBarChart({
                 width={110}
                 tick={{ fill: '#0f172a', fontSize: 12 }}
               />
-
               <Tooltip
                 cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
                 content={({ active, payload }) => {
@@ -111,10 +113,8 @@ export default function TopBarChart({
                   )
                 }}
               />
-
               <Bar
                 dataKey="_value"
-                fill={`url(#${gradId})`}
                 radius={[6, 6, 6, 6]}
                 onClick={handleClick}
                 cursor={
@@ -129,7 +129,11 @@ export default function TopBarChart({
                   fontSize: 12,
                   fontWeight: 600,
                 }}
-              />
+              >
+                {chartData.map((_, i) => (
+                  <Cell key={i} fill={palette[i % palette.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

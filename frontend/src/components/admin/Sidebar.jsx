@@ -8,12 +8,12 @@ export default function Sidebar() {
   return (
     <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 flex-col border-r border-surface-border bg-white z-30">
       {/* Brand */}
-      <div className="h-16 flex items-center px-5 border-b border-surface-border">
+      <div className="h-14 flex items-center px-5 border-b border-surface-border">
         <span className="text-lg font-semibold text-ink-900">{SHOP_NAME}</span>
       </div>
 
       {/* Groups */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
             <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">

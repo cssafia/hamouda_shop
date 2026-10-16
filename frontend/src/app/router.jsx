@@ -12,6 +12,7 @@ import ClientLayout from '../layouts/ClientLayout.jsx';
 const Login          = lazy(() => import('../pages/auth/Login'))
 const ForgotPassword = lazy(() => import('../pages/auth/ForgotPassword'))
 const ResetPassword  = lazy(() => import('../pages/auth/ResetPassword'))
+const ChangePassword  = lazy(() => import('../pages/auth/ChangePassword.jsx'))
 
 // Admin
 const Dashboard          = lazy(() => import('../pages/admin/Dashboard/Dashboard'))
@@ -31,6 +32,7 @@ const Reports            = lazy(() => import('../pages/admin/Reports/Reports'))
 const Notifications      = lazy(() => import('../pages/admin/Notification/Notification'))
 const RequestsList       = lazy(() => import('../pages/admin/Requests/RequestsList'))
 const RequestDetail       = lazy(() => import('../pages/admin/Requests/RequestDetail'))
+const Catalog       = lazy(() => import('../pages/admin/Catalog/CatalogPage.jsx'))
 
 // Client
 const Home                 = lazy(() => import('../pages/client/Home.jsx'));
@@ -64,12 +66,19 @@ export default function AppRouter() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* ---------- Auth (public) ---------- */}
+       {/* ---------- Auth — public (login, forgot, reset) ---------- */}
         <Route path="/auth" element={<AuthLayout />}>
           <Route index element={<Navigate to="/auth/login" replace />} />
-          <Route path="login" element={<Login />} />
+          <Route path="login"           element={<Login />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
-          <Route path="reset-password" element={<ResetPassword />} />
+          <Route path="reset-password"  element={<ResetPassword />} />
+        </Route>
+
+        {/* ---------- Auth — protected (change password) ---------- */}
+        <Route element={<AuthGuard />}>
+          <Route path="/auth" element={<AuthLayout />}>
+            <Route path="change-password" element={<ChangePassword />} />
+          </Route>
         </Route>
 
         {/* ---------- Client ------------ */}
@@ -107,6 +116,8 @@ export default function AppRouter() {
             <Route path="/admin/notifications" element={<Notifications />} />
             <Route path="/admin/requests"     element={<RequestsList />} />
             <Route path="/admin/requests/:id" element={<RequestDetail />} />
+            <Route path="/admin/catalog" element={<Catalog />} />
+
           </Route>
         </Route>
 
