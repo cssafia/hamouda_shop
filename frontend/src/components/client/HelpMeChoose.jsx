@@ -12,12 +12,39 @@ const USAGE_OPTIONS = [
   { key: 'daily',        label: 'يومي',    Icon: LuZap },
 ]
 
+/* `display` renders in the chip; `label` is used for the CTA string. */
 const BUDGET_OPTIONS = [
-  { key: 'low',     label: 'أقل من 50 000',    price_min: null,   price_max: 50000 },
-  { key: 'mid',     label: '50 000 – 100 000', price_min: 50000,  price_max: 100000 },
-  { key: 'high',    label: '100 000 – 200 000', price_min: 100000, price_max: 200000 },
-  { key: 'premium', label: 'أكثر من 200 000',  price_min: 200000, price_max: null },
+  {
+    key: 'low',
+    label: 'moins de 50 000',
+    display: <>أقل من <Num>50 000</Num></>,
+    price_min: null, price_max: 50000,
+  },
+  {
+    key: 'mid',
+    label: '50 000 – 100 000',
+    display: <><Num>50 000</Num> – <Num>100 000</Num></>,
+    price_min: 50000, price_max: 100000,
+  },
+  {
+    key: 'high',
+    label: '100 000 – 200 000',
+    display: <><Num>100 000</Num> – <Num>200 000</Num></>,
+    price_min: 100000, price_max: 200000,
+  },
+  {
+    key: 'premium',
+    label: 'plus de 200 000',
+    display: <>أكثر من <Num>200 000</Num></>,
+    price_min: 200000, price_max: null,
+  },
 ]
+
+/* Isolates Latin numbers from the RTL Arabic flow — prevents the
+   dash and digits from being visually reordered. */
+function Num({ children }) {
+  return <span dir="ltr">{children}</span>
+}
 
 function buildQuery(usageKey, budgetKey) {
   const params = new URLSearchParams()
@@ -38,7 +65,7 @@ function buildCtaLabel(usageKey, budgetKey) {
 }
 
 const CHIP_BASE =
-  'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40'
+  'inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40'
 const CHIP_OFF =
   'bg-white border-surface-border text-ink-700 hover:border-brand-500 hover:text-brand-600'
 const CHIP_ON =
@@ -50,10 +77,13 @@ export default function HelpMeChoose() {
   const qs = buildQuery(usage, budget)
 
   return (
-    <section aria-labelledby="choose-heading" className="py-16 lg:py-24 + brand-50 bg">
+    <section
+      aria-labelledby="choose-heading"
+      className="py-16 lg:py-24 bg-brand-50/40"
+    >
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-10">
           <h2
             id="choose-heading"
             dir="rtl"
@@ -67,14 +97,14 @@ export default function HelpMeChoose() {
         </div>
 
         {/* Question 1 — Usage */}
-        <div className="mb-6">
+        <div className="mb-8">
           <p
             dir="rtl"
-            className="text-sm font-medium text-ink-700 mb-3 text-right"
+            className="text-sm font-medium text-ink-700 mb-3 text-center"
           >
             باش تستعملو؟
           </p>
-          <div className="flex flex-wrap gap-2" dir="rtl">
+          <div className="flex flex-wrap justify-center gap-2" dir="rtl">
             {USAGE_OPTIONS.map((u) => {
               const on = usage === u.key
               const { Icon } = u
@@ -95,14 +125,14 @@ export default function HelpMeChoose() {
         </div>
 
         {/* Question 2 — Budget */}
-        <div className="mb-8">
+        <div className="mb-10">
           <p
             dir="rtl"
-            className="text-sm font-medium text-ink-700 mb-3 text-right"
+            className="text-sm font-medium text-ink-700 mb-3 text-center"
           >
             شحال ميزانيتك؟
           </p>
-          <div className="flex flex-wrap gap-2" dir="rtl">
+          <div className="flex flex-wrap justify-center gap-2" dir="rtl">
             {BUDGET_OPTIONS.map((b) => {
               const on = budget === b.key
               return (
@@ -113,14 +143,14 @@ export default function HelpMeChoose() {
                   onClick={() => setBudget(on ? null : b.key)}
                   className={`${CHIP_BASE} ${on ? CHIP_ON : CHIP_OFF}`}
                 >
-                  {b.label}
+                  {b.display}
                 </button>
               )
             })}
           </div>
         </div>
 
-        {/* CTA — centered, standalone */}
+        {/* CTA */}
         <div className="text-center">
           <Link
             to={qs ? `/products?${qs}` : '/products'}
